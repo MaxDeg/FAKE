@@ -240,6 +240,7 @@ let dotnetAssemblyInfos =
       "Fake.netcore", "Command line tool"
       "Fake.Runtime", "Core runtime features"
       "Fake.Tools.Git", "Running git commands"
+      "Fake.Tools.GitVersion", "Running GitVersion commands"
       "Fake.Testing.Common", "Common testing data types"
       "Fake.Tracing.NAntXml", "NAntXml"
       "Fake.Windows.Chocolatey", "Running and packaging with Chocolatey"
