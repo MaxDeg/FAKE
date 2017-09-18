@@ -49,6 +49,7 @@ nuget FSharp.Compiler.Service content: none
 nuget Octokit
 nuget Microsoft.Net.Http
 nuget Microsoft.DotNet.PlatformAbstractions
+nuget Aether
 
 github matthid/Yaaf.FSharp.Scripting src/source/Yaaf.FSharp.Scripting/YaafFSharpScripting.fs
 

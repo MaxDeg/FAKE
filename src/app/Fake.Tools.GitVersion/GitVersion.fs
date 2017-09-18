@@ -1,10 +1,12 @@
 ﻿module Fake.Tools.GitVersion
 
 open System
+open System.Linq
 
 open Fake.Core
 open Fake.Core.Globbing
 open Newtonsoft.Json
+open Aether
 
 
 (*
@@ -14,12 +16,15 @@ open Newtonsoft.Json
 type GitVersionOptions =
     { toolPath                      :   string
       path                          :   string option
+      output                        :   GitVersionOutputType
       overrideConfig                :   GitVersionConfigOverride list
       updateAssemblyInfo            :   string list option
       ensureAssemblyInfo            :   bool
       gitOptions                    :   GitVersionGitOptions option }
 
 and GitVersionConfigOverride = TagPrefix of string
+
+and GitVersionOutputType = Json | BuildServer
 
 and GitVersionGitOptions =
     { url                   :   Uri option
@@ -30,6 +35,14 @@ and GitVersionGitOptions =
       dynamicRepoLocation   :   string option
       noFetch               :   bool }
 
+// ----------------------------------------------------------------------------
+// Lenses
+
+let toolPath = (fun x -> x.toolPath), (fun v x -> { x with toolPath = v })
+
+let path = (fun x -> x.path), (fun v x -> { x with path = v })
+
+let overrideConfig = (fun x -> x.overrideConfig), (fun v x -> { x with overrideConfig = v })
 
 (*
     Output of GitVersion command
@@ -75,9 +88,9 @@ let gitVersionDefaultOptions =
 
     { toolPath = toolPath
       path = None
+      output = Json
       overrideConfig = List.empty
       updateAssemblyInfo = None
-      updateAssemblyInfoFileName = None
       ensureAssemblyInfo = false
       gitOptions = None }
 
@@ -86,14 +99,13 @@ let gitVersionDefaultOptions =
     GitVersion command
 *)
 
-let gitVersion (setOptions : GitVersionOptions -> GitVersionOptions) = 
-    let timeSpan =  TimeSpan.FromMinutes 1.
-    let options = setOptions gitVersionDefaultOptions
-    let deSerializeResult = JsonConvert.DeserializeObject<GitVersionOutput>
+let private buildArguments (options : GitVersionOptions) =
     let flip f a b = f b a
 
-    let arguments = seq {
+    seq {
         yield Option.map (sprintf "/targetpath %s") options.path
+
+        yield match options.output with Json -> Some "/output json" | BuildServer -> Some "/output buildServer"
 
         yield List.map (function TagPrefix s -> sprintf "tag-prefix=%s" s) options.overrideConfig
               |> fun l -> if List.isEmpty l
@@ -128,14 +140,45 @@ let gitVersion (setOptions : GitVersionOptions -> GitVersionOptions) =
         yield fun o -> if o.noFetch then Some "/nofetch" else None
               |> flip Option.bind options.gitOptions
     }
+    |> Seq.choose id
 
+let gitVersion options = 
+    let timeSpan =  TimeSpan.FromMinutes 1.
+    let deSerializeResult = JsonConvert.DeserializeObject<GitVersionOutput>
+    let arguments = buildArguments options |> String.concat " "
+
+    Trace.trace <| sprintf "Arguments: %s" arguments 
     let result = Process.ExecProcessAndReturnMessages 
                     (fun info -> 
                         info.FileName <- options.toolPath
-                        info.Arguments <- String.concat " " arguments)
+                        info.Arguments <- arguments)
                     timeSpan
     
-    if result.ExitCode <> 0
-    then String.concat "" result.Messages
-         |> failwithf "GitVersion failed with code %i and message %s" result.ExitCode
-    else String.concat "" result.Messages |> deSerializeResult
+    if result.ExitCode <> 0 then
+        String.concat "" result.Messages
+        |> failwithf "GitVersion failed with code %i and message %s" result.ExitCode
+    else 
+        String.concat "" result.Messages |> deSerializeResult
+
+let gitVersionShowVariable options varName = 
+    let timeSpan =  TimeSpan.FromMinutes 1.
+    let deSerializeResult = JsonConvert.DeserializeObject<GitVersionOutput>
+    let arguments = 
+        seq {
+            yield! buildArguments options
+            yield  sprintf "/showvariable %s" varName
+        }
+        |> String.concat " "
+
+    Trace.trace <| sprintf "Arguments: %s" arguments
+    let result = Process.ExecProcessAndReturnMessages 
+                    (fun info -> 
+                        info.FileName <- options.toolPath
+                        info.Arguments <- arguments)
+                    timeSpan
+    
+    if result.ExitCode <> 0 then
+        String.concat "" result.Messages
+        |> failwithf "GitVersion failed with code %i and message %s" result.ExitCode
+    else 
+        result.Messages.Single()
