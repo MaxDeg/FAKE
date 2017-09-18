@@ -25,6 +25,7 @@ type PaketPackParams =
       ExcludedTemplates : string list
       WorkingDir : string
       OutputPath : string 
+      ProjectUrl : string 
       Symbols : bool
       IncludeReferencedProjects : bool
       MinimumFromLockFile : bool
@@ -41,6 +42,7 @@ let PaketPackDefaults() : PaketPackParams =
       BuildConfig = null
       BuildPlatform = null
       TemplateFile = null
+      ProjectUrl = null
       ExcludedTemplates = []
       WorkingDir = "."
       OutputPath = "./temp" 
@@ -101,21 +103,25 @@ let Pack setParams =
         if String.IsNullOrWhiteSpace notEncodedText then ""
         else XText(notEncodedText).ToString().Replace("ß", "&szlig;")
 
-    let version = if String.IsNullOrWhiteSpace parameters.Version then "" else " version " + Process.toParam parameters.Version
-    let releaseNotes = if String.IsNullOrWhiteSpace parameters.ReleaseNotes then "" else " releaseNotes " + Process.toParam (xmlEncode parameters.ReleaseNotes)
-    let buildConfig = if String.IsNullOrWhiteSpace parameters.BuildConfig then "" else " buildconfig " + Process.toParam parameters.BuildConfig
-    let buildPlatform = if String.IsNullOrWhiteSpace parameters.BuildPlatform then "" else " buildplatform " + Process.toParam parameters.BuildPlatform
-    let templateFile = if String.IsNullOrWhiteSpace parameters.TemplateFile then "" else " templatefile " + Process.toParam parameters.TemplateFile
-    let lockDependencies = if parameters.LockDependencies then " lock-dependencies" else ""
-    let excludedTemplates = parameters.ExcludedTemplates |> Seq.map (fun t -> " exclude " + t) |> String.concat " "
-    let specificVersions = parameters.SpecificVersions |> Seq.map (fun (id,v) -> sprintf " specific-version %s %s" id v) |> String.concat " "
-    let symbols = if parameters.Symbols then " symbols" else ""
-    let includeReferencedProjects = if parameters.IncludeReferencedProjects then " include-referenced-projects" else ""
-    let minimumFromLockFile = if parameters.MinimumFromLockFile then " minimum-from-lock-file" else ""
-    let pinProjectReferences = if parameters.PinProjectReferences then " pin-project-references" else ""
+    let version = if String.IsNullOrWhiteSpace parameters.Version then "" else " --version " + Process.toParam parameters.Version
+    let buildConfig = if String.IsNullOrWhiteSpace parameters.BuildConfig then "" else " --build-config " + Process.toParam parameters.BuildConfig
+    let buildPlatform = if String.IsNullOrWhiteSpace parameters.BuildPlatform then "" else " --build-platform " + Process.toParam parameters.BuildPlatform
+    let templateFile = if String.IsNullOrWhiteSpace parameters.TemplateFile then "" else " --template " + Process.toParam parameters.TemplateFile
+    let lockDependencies = if parameters.LockDependencies then " --lock-dependencies" else ""
+    let excludedTemplates = parameters.ExcludedTemplates |> Seq.map (fun t -> " --exclude " + t) |> String.concat " "
+    let specificVersions = parameters.SpecificVersions |> Seq.map (fun (id,v) -> sprintf " --specific-version %s %s" id v) |> String.concat " "
+    let releaseNotes = if String.IsNullOrWhiteSpace parameters.ReleaseNotes then "" else " --release-notes " + Process.toParam (xmlEncode parameters.ReleaseNotes)
+    let minimumFromLockFile = if parameters.MinimumFromLockFile then " --minimum-from-lock-file" else ""
+    let pinProjectReferences = if parameters.PinProjectReferences then " --pin-project-references" else ""
+    let symbols = if parameters.Symbols then " --symbols" else ""
+    let includeReferencedProjects = if parameters.IncludeReferencedProjects then " --include-referenced-projects" else ""
+    let projectUrl = if String.IsNullOrWhiteSpace parameters.ProjectUrl then "" else " --project-url " + Process.toParam parameters.ProjectUrl
 
     let packResult =
-        let cmdArgs = sprintf "%s%s%s%s%s%s%s%s%s%s%s%s" version specificVersions releaseNotes buildConfig buildPlatform templateFile lockDependencies excludedTemplates symbols includeReferencedProjects minimumFromLockFile pinProjectReferences
+        let cmdArgs = 
+            sprintf "%s%s%s%s%s%s%s%s%s%s%s%s%s" 
+                version specificVersions releaseNotes buildConfig buildPlatform templateFile lockDependencies excludedTemplates 
+                symbols includeReferencedProjects minimumFromLockFile pinProjectReferences projectUrl
         Process.ExecProcess
             (fun info ->
                 info.FileName <- parameters.ToolPath
@@ -132,9 +138,9 @@ let Push setParams =
     let parameters : PaketPushParams = PaketPushDefaults() |> setParams
 
     let packages = !! (parameters.WorkingDir @@ "/**/*.nupkg") |> Seq.toList
-    let url = if String.IsNullOrWhiteSpace parameters.PublishUrl then "" else " url " + Process.toParam parameters.PublishUrl
-    let endpoint = if String.IsNullOrWhiteSpace parameters.EndPoint then "" else " endpoint " + Process.toParam parameters.EndPoint
-    let key = if String.IsNullOrWhiteSpace parameters.ApiKey then "" else " apikey " + Process.toParam parameters.ApiKey
+    let url = if String.IsNullOrWhiteSpace parameters.PublishUrl then "" else " --url " + Process.toParam parameters.PublishUrl
+    let endpoint = if String.IsNullOrWhiteSpace parameters.EndPoint then "" else " --endpoint " + Process.toParam parameters.EndPoint
+    let key = if String.IsNullOrWhiteSpace parameters.ApiKey then "" else " --apikey " + Process.toParam parameters.ApiKey
 
     use __ = Trace.traceTask "PaketPush" (String.separated ", " packages)
 
@@ -159,7 +165,7 @@ let Push setParams =
                         let pushResult =
                             Process.ExecProcess (fun info ->
                                 info.FileName <- parameters.ToolPath
-                                info.Arguments <- sprintf "push %s%s%s file %s" url endpoint key (Process.toParam package)) parameters.TimeOut
+                                info.Arguments <- sprintf "push %s%s%s%s" url endpoint key (Process.toParam package)) parameters.TimeOut
                         if pushResult <> 0 then failwithf "Error during pushing %s." package })
 
             Async.Parallel tasks
@@ -172,7 +178,7 @@ let Push setParams =
                 Process.ExecProcess (fun info ->
                     info.FileName <- parameters.ToolPath
                     info.WorkingDirectory <- parameters.WorkingDir
-                    info.Arguments <- sprintf "push %s%s%s file %s" url endpoint key (Process.toParam package)) parameters.TimeOut
+                    info.Arguments <- sprintf "push %s%s%s%s" url endpoint key (Process.toParam package)) parameters.TimeOut
             if pushResult <> 0 then failwithf "Error during pushing %s." package
 
 /// Returns the dependencies from specified paket.references file
@@ -219,7 +225,7 @@ let Restore setParams =
     let parameters : PaketRestoreParams = PaketRestoreDefaults() |> setParams
     let forceRestore = if parameters.ForceDownloadOfPackages then " --force " else ""
     let onlyReferenced = if parameters.OnlyReferencedFiles then " --only-referenced " else ""
-    let groupArg = if parameters.Group <> "" then (sprintf " group %s " parameters.Group) else ""
+    let groupArg = if parameters.Group <> "" then (sprintf " --group %s " parameters.Group) else ""
     let referencedFiles = 
         if parameters.ReferenceFiles |> List.isEmpty |> not
         then (sprintf " --references-files %s " (System.String.Join(" ", parameters.ReferenceFiles)))

@@ -151,8 +151,15 @@ let cleanForTests () =
 // Targets
 Target "Clean" (fun _ ->
     !! "src/*/*/bin"
-    ++ "src/*/*/obj"
+    //++ "src/*/*/obj"
     |> CleanDirs
+
+    !! "src/*/*/obj/*.nuspec"
+    //-- "src/*/*/obj/*.references"
+    //-- "src/*/*/obj/*.props"
+    //-- "src/*/*/obj/*.paket.references.cached"
+    //-- "src/*/*/obj/*.NuGet.Config"
+    |> DeleteFiles
 
     CleanDirs [buildDir; testDir; docsDir; apidocsDir; nugetDncDir; nugetLegacyDir; reportDir]
 
@@ -213,7 +220,8 @@ let common = [
 
 // New FAKE libraries
 let dotnetAssemblyInfos =
-    [ "Fake.Core.BuildServer", "Buildserver Support"
+    [ "Fake.Api.Slack", "Slack Integration Support"
+      "Fake.Core.BuildServer", "Buildserver Support"
       "Fake.Core.Context", "Core Context Infrastructure"
       "Fake.Core.Environment", "Environment Detection"
       "Fake.Core.Globbing", "Filesystem Globbing Support and Operators"
@@ -583,7 +591,12 @@ Target "CreateNuGet" (fun _ ->
             deleteFCS nugetToolsDir
         | p when p = "FAKE.Lib" ->
             CleanDir nugetLib451Dir
-            !! (buildDir @@ "FakeLib.dll") |> Copy nugetLib451Dir
+            {
+                BaseDirectory = buildDir
+                Includes = [ "FakeLib.dll"; "FakeLib.XML" ]
+                Excludes = []
+            }
+            |> Copy nugetLib451Dir
             deleteFCS nugetLib451Dir
         | _ ->
             CopyDir nugetToolsDir (buildDir @@ package) allFiles
@@ -622,7 +635,7 @@ let LatestTooling options =
                 Branch = "release/2.0.0"
             })
         Channel = None
-        Version = Version "1.0.4"
+        Version = Version "2.0.0"
     }
 Target "InstallDotnetCore" (fun _ ->
      DotnetCliInstall LatestTooling
@@ -725,7 +738,7 @@ Target "DotnetPackage" (fun _ ->
                 | Some r -> r, r
                 | None -> "current", info.RID
 
-            DotnetRestore (fun c -> {c with Runtime = Some runtime}) proj
+            //DotnetRestore (fun c -> {c with Runtime = Some runtime}) proj
             let outDir = nugetDir @@ projName @@ runtimeName
             DotnetPublish (fun c ->
                 { c with
@@ -744,13 +757,10 @@ Target "DotnetPackage" (fun _ ->
 
     // Publish portable as well (see https://docs.microsoft.com/en-us/dotnet/articles/core/app-types)
     let netcoreFsproj = "src/app/Fake.netcore/Fake.netcore.fsproj"
-    let oldContent = File.ReadAllText netcoreFsproj
-
-    // File.WriteAllText(netcoreJson, newContent)
     let outDir = nugetDir @@ "Fake.netcore" @@ "portable"
     DotnetPublish (fun c ->
         { c with
-            Framework = Some "netcoreapp1.0"
+            Framework = Some "netcoreapp1.1"
             OutputPath = Some outDir
         }) netcoreFsproj
 )
@@ -968,7 +978,7 @@ Target "Release" ignore
     ==> "StartDnc"
     ==> "InstallDotnetCore"
     ==> "DownloadPaket"
-    ==> "DotnetRestore"
+    //==> "DotnetRestore"
     ==> "DotnetPackage"
 
 // Dependencies
@@ -984,7 +994,7 @@ Target "Release" ignore
     =?> ("Test", not <| hasBuildParam "SkipTests")
     =?> ("BootstrapTest",not <| hasBuildParam "SkipTests")
     =?> ("BootstrapTestDotnetCore",not <| hasBuildParam "SkipTests")
-    =?> ("SourceLink", isLocalBuild && not isLinux)
+    //=?> ("SourceLink", isLocalBuild && not isLinux)
     =?> ("CreateNuGet", not isLinux)
     ==> "CopyLicense"
     =?> ("DotnetCoreCreateChocolateyPackage", not isLinux)

@@ -4,6 +4,7 @@ module Fake.DotNet.Testing.MSTest
 open System
 open System.Text
 open Fake.Core.String
+open Fake.Core.StringBuilder
 open Fake.Core.Process
 open Fake.Core
 open Fake.Testing.Common
@@ -43,6 +44,8 @@ type MSTestParams =
       TimeOut : TimeSpan
       /// Path to MSTest.exe 
       ToolPath : string
+      /// List of additional test case properties to display, if they exist (optional)
+      Details : string list
       /// Option which allow to specify if a MSTest error should break the build.
       ErrorLevel : ErrorLevel
       /// Run tests in isolation (optional).
@@ -61,6 +64,7 @@ let MSTestDefaults =
           match tryFindFile mstestPaths mstestexe with
           | Some path -> path
           | None -> ""
+      Details = []
       ErrorLevel = ErrorLevel.Error
       NoIsolation = true }
 
@@ -72,19 +76,16 @@ let buildMSTestArgs parameters assembly =
             sprintf @"%s\%s.trx" parameters.ResultsDir (DateTime.Now.ToString("yyyyMMdd-HHmmss.ff"))
         else null
 
-    let builder =
-        new StringBuilder()
-        |> appendIfNotNull assembly "/testcontainer:"
-        |> appendIfNotNull parameters.Category "/category:"
-        |> appendIfNotNull parameters.TestMetadataPath "/testmetadata:"
-        |> appendIfNotNull parameters.TestSettingsPath "/testsettings:"
-        |> appendIfNotNull testResultsFile "/resultsfile:"
-        |> appendIfTrue parameters.NoIsolation "/noisolation"
-
-    parameters.Tests
-    |> List.iter (fun t -> builder |> appendIfNotNullOrEmpty t "/test:" |> ignore)
-
-    builder |> toText
+    new StringBuilder()
+    |> appendIfNotNull assembly "/testcontainer:"
+    |> appendIfNotNull parameters.Category "/category:"
+    |> appendIfNotNull parameters.TestMetadataPath "/testmetadata:"
+    |> appendIfNotNull parameters.TestSettingsPath "/testsettings:"
+    |> appendIfNotNull testResultsFile "/resultsfile:"
+    |> appendIfTrue parameters.NoIsolation "/noisolation"
+    |> forEach parameters.Tests appendIfNotNullOrEmpty "/test:"
+    |> forEach parameters.Details appendIfNotNullOrEmpty "/detail:"
+    |> toText
 
 /// Runs MSTest command line tool on a group of assemblies.
 /// ## Parameters
