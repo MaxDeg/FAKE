@@ -49,7 +49,6 @@ nuget FSharp.Compiler.Service content: none
 nuget Octokit
 nuget System.Net.Http
 nuget Microsoft.DotNet.PlatformAbstractions
-nuget Aether
 
 github matthid/Yaaf.FSharp.Scripting src/source/Yaaf.FSharp.Scripting/YaafFSharpScripting.fs
 
@@ -120,6 +119,7 @@ group netcore
     nuget Argu
     nuget Paket.Core prerelease
     nuget Mono.Cecil prerelease
+    nuget Aether
 
     nuget System.Linq.Parallel
     nuget System.Diagnostics.FileVersionInfo

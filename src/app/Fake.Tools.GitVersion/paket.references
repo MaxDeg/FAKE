@@ -1,2 +1,6 @@
+group netcore
+
+FSharp.Core
+NETStandard.Library
 Newtonsoft.Json
 Aether

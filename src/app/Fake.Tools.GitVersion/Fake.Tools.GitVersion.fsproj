@@ -1,6 +1,6 @@
-<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <VersionPrefix>1.0.0-alpha-1</VersionPrefix>
+        <VersionPrefix>1.0.0-alpha-16</VersionPrefix>
         <!--<TargetFrameworks>net46;netstandard1.6</TargetFrameworks>-->
         <TargetFramework>netstandard1.6</TargetFramework>
         <DefineConstants>$(DefineConstants);DOTNETCORE</DefineConstants>
@@ -8,19 +8,23 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AssemblyName>Fake.Tools.GitVersion</AssemblyName>
         <OutputType>Library</OutputType>
-        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
         <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(PackageTargetFallback);portable-net45+win8;dnxcore50</PackageTargetFallback>
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.fs" />
-        <Compile Include="GiVersion.fs" />
+        <Compile Include="GitVersion.fs" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\Fake.Core.SemVer\Fake.Core.SemVer.fsproj" />
         <ProjectReference Include="..\Fake.Core.Environment\Fake.Core.Environment.fsproj" />
         <ProjectReference Include="..\Fake.Core.Globbing\Fake.Core.Globbing.fsproj" />
+        <ProjectReference Include="..\Fake.Core.Tracing\Fake.Core.Tracing.fsproj" />
+        <ProjectReference Include="..\Fake.Core.Process\Fake.Core.Process.fsproj" />
+        <ProjectReference Include="..\Fake.IO.FileSystem\Fake.IO.FileSystem.fsproj" />
+        <ProjectReference Include="..\Fake.Core.String\Fake.Core.String.fsproj" />
     </ItemGroup>
     <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
-        <DefineConstants>$(DefineConstants);NETSTANDARD1_5</DefineConstants>
+        <DefineConstants>$(DefineConstants);NETSTANDARD;USE_HTTPCLIENT</DefineConstants>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
         <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
