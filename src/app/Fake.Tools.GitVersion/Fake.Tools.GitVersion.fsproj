@@ -1,33 +1,27 @@
-<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <PropertyGroup>
-        <VersionPrefix>1.0.0-alpha-16</VersionPrefix>
-        <!--<TargetFrameworks>net46;netstandard1.6</TargetFrameworks>-->
-        <TargetFramework>netstandard1.6</TargetFramework>
-        <DefineConstants>$(DefineConstants);DOTNETCORE</DefineConstants>
-        <DebugType>pdbonly</DebugType>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyName>Fake.Tools.GitVersion</AssemblyName>
-        <OutputType>Library</OutputType>
-        <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(PackageTargetFallback);portable-net45+win8;dnxcore50</PackageTargetFallback>
-    </PropertyGroup>
-    <ItemGroup>
-        <Compile Include="AssemblyInfo.fs" />
-        <Compile Include="GitVersion.fs" />
-    </ItemGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\Fake.Core.SemVer\Fake.Core.SemVer.fsproj" />
-        <ProjectReference Include="..\Fake.Core.Environment\Fake.Core.Environment.fsproj" />
-        <ProjectReference Include="..\Fake.Core.Globbing\Fake.Core.Globbing.fsproj" />
-        <ProjectReference Include="..\Fake.Core.Tracing\Fake.Core.Tracing.fsproj" />
-        <ProjectReference Include="..\Fake.Core.Process\Fake.Core.Process.fsproj" />
-        <ProjectReference Include="..\Fake.IO.FileSystem\Fake.IO.FileSystem.fsproj" />
-        <ProjectReference Include="..\Fake.Core.String\Fake.Core.String.fsproj" />
-    </ItemGroup>
-    <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
-        <DefineConstants>$(DefineConstants);NETSTANDARD;USE_HTTPCLIENT</DefineConstants>
-    </PropertyGroup>
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-        <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
-    </PropertyGroup>
-    <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+<Project ToolsVersion="15.0" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Fake.Tools.GitVersion</AssemblyName>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netstandard1.6</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
+    <DefineConstants>$(DefineConstants);NETSTANDARD;USE_HTTPCLIENT</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Fake.Core.SemVer\Fake.Core.SemVer.fsproj" />
+    <ProjectReference Include="..\Fake.Core.Environment\Fake.Core.Environment.fsproj" />
+    <ProjectReference Include="..\Fake.Core.Globbing\Fake.Core.Globbing.fsproj" />
+    <ProjectReference Include="..\Fake.Core.Tracing\Fake.Core.Tracing.fsproj" />
+    <ProjectReference Include="..\Fake.Core.Process\Fake.Core.Process.fsproj" />
+    <ProjectReference Include="..\Fake.IO.FileSystem\Fake.IO.FileSystem.fsproj" />
+    <ProjectReference Include="..\Fake.Core.String\Fake.Core.String.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GitVersion.fs" />
+    <Compile Include="AssemblyInfo.fs" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" />
 </Project>

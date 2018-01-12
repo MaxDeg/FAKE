@@ -3,7 +3,6 @@ module Fake.Tools.GitVersion
 
 open System
 open System.Linq
-open System.Diagnostics
 open System.IO
 
 open Fake.Core
@@ -99,53 +98,65 @@ and ExecuteBuildArgsOptions =
 // ----------------------------------------------------------------------------
 // Lenses
 
-let toolPath = 
+let toolPath_ : Lens<Options, string> = 
     (fun x -> x.toolPath),
     (fun v x -> { x with toolPath = v })
 
-let path =
+let path_ : Prism<Options, string> =
     (fun x -> x.path),
-    (fun v x -> { x with path = v })
+    (fun v x -> { x with path = Some v })
 
-let output =
+let output_ : Lens<Options, OutputTypeOption> =
     (fun x -> x.output),
     (fun v x -> { x with output = v })
 
-let overrideConfig =
+let overrideConfig_ : Lens<Options, ConfigOverrideOptions list> =
     (fun x -> x.overrideConfig),
     (fun v x -> { x with overrideConfig = v })
 
-let gitOptions =
+let updateAssemblyInfo_ : Prism<Options, UpdateAssemblyInfoOption> =
+    (fun x -> x.updateAssemblyInfo),
+    (fun v x -> { x with updateAssemblyInfo = Some v })
+
+let ensureAssemblyInfo_ : Lens<Options, bool> =
+    (fun x -> x.ensureAssemblyInfo),
+    (fun v x -> { x with ensureAssemblyInfo = v })
+
+let gitOptions_ : Prism<Options, GitOptions> =
     (fun x -> x.gitOptions),
     (fun v x -> { x with gitOptions = Some v })
 
-let url =
-    let lens = (fun x -> x.url), (fun v x -> { x with url = v })
-    gitOptions >?> lens
+let url_ : Prism<GitOptions, Uri> =
+    (fun x -> x.url),
+    (fun v x -> { x with url = Some v })
 
-let branchName =
-    let lens = (fun x -> x.branchName), (fun v x -> { x with branchName = v })
-    gitOptions >?> lens
+let urlstring_ : Isomorphism<Uri, string> =
+    string,
+    (fun s -> Uri(s))
 
-let userName =
-    let lens = (fun x -> x.userName), (fun v x -> { x with userName = v })
-    gitOptions >?> lens
+let branchName_ : Prism<GitOptions, string> =
+    (fun x -> x.branchName),
+    (fun v x -> { x with branchName = Some v })
 
-let password =
-    let lens = (fun x -> x.password), (fun v x -> { x with password = v })
-    gitOptions >?> lens
+let userName_ : Prism<GitOptions, string> =
+    (fun x -> x.userName),
+    (fun v x -> { x with userName = Some v })
 
-let commitId =
-    let lens = (fun x -> x.commitId), (fun v x -> { x with commitId = v })
-    gitOptions >?> lens
+let password_ : Prism<GitOptions, string> =
+    (fun x -> x.password),
+    (fun v x -> { x with password = Some v })
 
-let dynamicRepoLocation =
-    let lens = (fun x -> x.dynamicRepoLocation), (fun v x -> { x with dynamicRepoLocation = v })
-    gitOptions >?> lens
+let commitId_ : Prism<GitOptions, string> =
+    (fun x -> x.commitId),
+    (fun v x -> { x with commitId = Some v })
 
-let noFetch =
-    let lens = (fun x -> x.noFetch), (fun v x -> { x with noFetch = v })
-    gitOptions >?> lens
+let dynamicRepoLocation_ : Prism<GitOptions, string> =
+    (fun x -> x.dynamicRepoLocation),
+    (fun v x -> { x with dynamicRepoLocation = Some v })
+
+let noFetch_ : Lens<GitOptions, bool> =
+    (fun x -> x.noFetch),
+    (fun v x -> { x with noFetch = v })
 
 
 (*
@@ -223,29 +234,37 @@ let private executeGitVersion toolPath arguments =
         messages
 
 let private buildArguments (options : Options) =
-    let flip f a b = f b a
+    let appendOption key prism =
+        appendIfSome (options ^. prism) (sprintf "/%s %s" key)
 
     StringBuilder ()
-    |> appendIfSome options.path (sprintf "-targetpath %s")
-    |> append (match options.output with Json -> "-output json" | BuildServer -> "-output buildServer")
-    |> append (options.overrideConfig
-              |> List.map (function TagPrefix s -> sprintf "tag-prefix=%s" s)
-              |> String.concat " "
-              |> sprintf "-overrideconfig %s")
-    |> appendIfSome
-        options.updateAssemblyInfo
-        (function
-        | AutoDetect -> "-updateassemblyinfo"
-        | File f     -> sprintf "-updateassemblyinfo %s" f
-        | Files fs   -> String.concat " " fs |> sprintf "-updateassemblyinfo %s")
-    |> appendIfTrue options.ensureAssemblyInfo "-ensureassemblyinfo"
-    |> appendIfSome (Optic.get url options) (string >> sprintf "/url %s")
-    |> appendIfSome (Optic.get branchName options) (string >> sprintf "/b %s")
-    |> appendIfSome (Optic.get userName options) (string >> sprintf "/u %s")
-    |> appendIfSome (Optic.get password options) (string >> sprintf "/p %s")
-    |> appendIfSome (Optic.get commitId options) (string >> sprintf "/c %s")
-    |> appendIfSome (Optic.get dynamicRepoLocation options) (string >> sprintf "/dynamicRepoLocation %s")
-    |> appendIfSome (Optic.get noFetch options) (string >> sprintf "/nofetch %s")
+
+    |> append       (options ^. output_
+                    |> function
+                    | Json -> "/output json"
+                    | BuildServer -> "/output buildServer")
+
+    |> append       (options ^. overrideConfig_
+                    |> List.map (function TagPrefix s -> sprintf "tag-prefix=%s" s)
+                    |> String.concat ";"
+                    |> sprintf "/overrideconfig %s")
+
+    |> appendIfSome (options ^. updateAssemblyInfo_)
+                    (function
+                    | AutoDetect -> "/updateassemblyinfo"
+                    | File f     -> sprintf "/updateAssemblyInfo %s" f
+                    | Files fs   -> String.concat ";" fs |> sprintf "/updateAssemblyInfo %s")
+
+    |> appendIfSome (options ^. (gitOptions_ >?> noFetch_)) (function true -> "/nofetch" | false -> "")
+
+    |> appendOption "targetpath"                            path_
+    |> appendIfTrue (options ^. ensureAssemblyInfo_)        "/ensureassemblyinfo"
+    |> appendOption "url"                                   (gitOptions_ >?> url_ >?> urlstring_)
+    |> appendOption "b"                                     (gitOptions_ >?> branchName_)
+    |> appendOption "u"                                     (gitOptions_ >?> userName_)
+    |> appendOption "p"                                     (gitOptions_ >?> password_)
+    |> appendOption "c"                                     (gitOptions_ >?> commitId_)
+    |> appendOption "dynamicRepoLocation"                   (gitOptions_ >?> dynamicRepoLocation_)
 
 let exec options = 
     buildArguments options
